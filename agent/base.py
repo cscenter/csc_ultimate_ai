@@ -1,14 +1,17 @@
-import random
 from abc import ABC, abstractmethod
 from typing import cast, Optional
 
-from agent.protocol import MessageOut, MessageIn, Pong, MessageInType, PingMsg, OfferRequest, OfferResponse, \
+from base.protocol import MessageOut, MessageIn, Pong, MessageInType, PingMsg, OfferRequest, OfferResponse, \
     DealRequest, DealResponse, MessageOutType
 
 
 # Agent 'interface'
 class BaseAgent(ABC):
     agent_id: Optional[int] = None
+
+    @staticmethod
+    def get_my_name(self) -> str:
+        pass
 
     def action(self, m: MessageIn) -> MessageOut:
         if m.msg_type == MessageInType.PING:
@@ -35,24 +38,3 @@ class BaseAgent(ABC):
     @abstractmethod
     def deal_action(self, m: DealRequest) -> DealResponse:
         pass
-
-
-class DummyAgent(BaseAgent):
-
-    def offer_action(self, m: OfferRequest) -> OfferResponse:
-        return OfferResponse(m.total_amount // 2)
-
-    def deal_action(self, m: DealRequest) -> DealResponse:
-        if m.offer > 0:
-            return DealResponse(True)
-        else:
-            return DealResponse(False)
-
-
-class ChaoticAgent(BaseAgent):
-
-    def offer_action(self, m: OfferRequest) -> OfferResponse:
-        return OfferResponse(random.randint(0, m.total_amount))
-
-    def deal_action(self, m: DealRequest) -> DealResponse:
-        return DealResponse(random.choice([True, False]))

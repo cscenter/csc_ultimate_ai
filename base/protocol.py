@@ -1,3 +1,4 @@
+import uuid
 from dataclasses import dataclass, field
 from enum import Enum
 from abc import ABC
@@ -11,6 +12,7 @@ import time
 
 class MessageInType(str, Enum):
     PING = 'PING'
+    READY = 'READY'
     OFFER_REQUEST = 'OFFER_REQUEST'
     DEAL_REQUEST = 'DEAL_REQUEST'
     ROUND_RESULT = 'ROUND_RESULT'
@@ -22,8 +24,12 @@ class MessageInPayload(ABC):
 
 @dataclass(eq=True, frozen=True)
 class PingMsg(MessageInPayload):
-    agent_id: int
     timestamp: float = field(default_factory=lambda: time.time())
+
+
+@dataclass(eq=True, frozen=True)
+class ReadyMsg(MessageInPayload):
+    your_agent_id: int
 
 
 @dataclass(eq=True, frozen=True)
@@ -59,6 +65,7 @@ class MessageIn:
 # # # # # # # # # #
 
 class MessageOutType(str, Enum):
+    HELLO = 'HELLO'
     PONG = 'PONG'
     OFFER_RESPONSE = 'OFFER_RESPONSE'
     DEAL_RESPONSE = 'DEAL_RESPONSE'
@@ -66,6 +73,11 @@ class MessageOutType(str, Enum):
 
 class MessageOutPayload(ABC):
     pass
+
+
+@dataclass(eq=True, frozen=True)
+class Hello(MessageOutPayload):
+    my_name: str
 
 
 @dataclass(eq=True, frozen=True)
