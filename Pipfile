@@ -7,7 +7,6 @@ verify_ssl = true
 
 [packages]
 pyzmq = "==19.0.0"
-dataclass_factory = "==2.8.3"
 
 [requires]
 python_version = "3.7"

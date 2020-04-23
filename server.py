@@ -1,58 +1,59 @@
 import asyncio
 import dataclasses
-import json
+import logging
+import random
+import time
 from dataclasses import dataclass
-from typing import Optional, cast, Dict
+from typing import Optional, Dict, List, Tuple
 
-import dataclass_factory
 import zmq.asyncio
 from zmq.asyncio import Context
-import traceback
 
-from base.protocol import MessageOutType, MessageOut, Hello, Pong, OfferResponse, DealResponse, ReadyMsg, MessageInType, \
-    MessageIn
-import logging
-import sys
-
+from base.protocol import MessageOutType, Hello, OfferResponse, DealResponse, ReadyMsg, MessageInType, \
+    MessageIn, OfferRequest, DealRequest, RoundResult
 from base.util import init_stdout_logging
-
-
-# def decode_msg(msg_data) -> Optional[MessageOut]:
-#     try:
-#         # msg_data = json.loads(raw_msg)
-#         msg_type = msg_data['msg_type']
-#         msg_payload = msg_data['payload']
-#         if msg_type == MessageOutType.HELLO:
-#             return MessageOut(msg_type, Hello(**msg_payload))
-#         elif msg_type == MessageOutType.PONG:
-#             return MessageOut(msg_type, Pong(**msg_payload))
-#         elif msg_type == MessageOutType.OFFER_RESPONSE:
-#             return MessageOut(msg_type, OfferResponse(**msg_payload))
-#         elif msg_type == MessageOutType.DEAL_RESPONSE:
-#             return MessageOut(msg_type, DealResponse(**msg_payload))
-#     except ValueError as e:
-#         logging.exception("Decoding error")
-#     return None
 
 
 @dataclass
 class AgentState:
+    uid: str
     name: str
-    agent_id: int
     current_round: int = 0
     total_rounds: int = 0
     wins: int = 0
     total_gain: int = 0
+    last_action_time: float = 0
+    timeout_disconnected: bool = False
+
+
+@dataclass
+class Round:
+    round_id: int
+    total_amount: int
+    proposer: AgentState
+    responder: AgentState
+    proposer_offer: int = 0
+    responder_accepted: bool = False
+    proposer_disconnected: bool = False
+    responder_disconnected: bool = False
+
+    def is_failed(self) -> bool:
+        return self.proposer_disconnected or self.responder_disconnected
 
 
 class Server:
 
     def __init__(self):
+        self.total_offer = 100
+        self.agent_round_limit = 10
         self.await_agents = 2
+        self.agent_timeout = 5
         self.url = '127.0.0.1'
         self.port = '5555'
         self.url = "tcp://{}:{}".format(self.url, self.port)
         self.ctx = Context.instance()
+        self.mq_socket: Optional[zmq.Socket] = None
+        self.agents_state: Dict[str, AgentState] = {}
 
     def start(self):
         asyncio.get_event_loop().run_until_complete(asyncio.wait([
@@ -60,48 +61,217 @@ class Server:
         ]))
 
     async def server_handler(self):
-        mq_socket = None
         try:
-            mq_socket = await self.init_mq_router_socket()
-            agents_state = await self.wait_all_clients(mq_socket)
-            await self.send_ready_for_all(mq_socket, agents_state)
+            await self.init_mq_router_socket()
+            new_agents_state = await self.wait_all_clients()
+            self.set_agents_state(new_agents_state)
+            await self.send_ready_for_all()
+            await asyncio.sleep(.3)
+            round_counter: int = 0
+            while not self.is_stop_criteria():
+                round_counter, rounds = self.generate_rounds(round_counter)
+                await self.send_offer_questions(rounds)
+                await self.wait_all_offer_answers(rounds)
+                await self.send_deal_questions(rounds)
+                await self.wait_deal_answers(rounds)
+                await self.send_result_for_all(rounds)
+            #
+            self.show_stat()
         except Exception as e:
             logging.exception("Server error.")
         finally:
-            if mq_socket:
+            if self.mq_socket:
                 logging.info("Close socket.")
-                mq_socket.close()
+                self.mq_socket.close()
 
-    async def init_mq_router_socket(self) -> zmq.Socket:
+    async def init_mq_router_socket(self):
         mq_socket = self.ctx.socket(zmq.ROUTER)
         mq_socket.bind(self.url[:-1] + "{}".format(int(self.url[-1]) + 1))
         logging.info("MQ router socket initialized")
-        return mq_socket
+        self.mq_socket = mq_socket
 
-    async def wait_all_clients(self, mq_socket: zmq.Socket) -> Dict[str, AgentState]:
+    async def wait_all_clients(self) -> Dict[str, AgentState]:
         agents_state = {}
         counter = 0
         logging.info("Wait clients ...")
         while len(agents_state) < self.await_agents:
-            connection_uid = await mq_socket.recv()
-            connection_uid = connection_uid.decode('utf-8')
-            raw_msg = await mq_socket.recv_json()
+            connection_uid = await self.mq_socket.recv_string()
+            raw_msg = await self.mq_socket.recv_json()
+            logging.debug("Received from %s msg: %s", connection_uid, raw_msg)
             if raw_msg.get('msg_type', None) == MessageOutType.HELLO:
                 counter += 1
                 msg_payload = raw_msg['payload']
                 hello_msg = Hello(**msg_payload)
-                agents_state[connection_uid] = AgentState(name=hello_msg.my_name, agent_id=counter)
-                logging.info(f"New client connected. agent_id:{counter} name:'{hello_msg.my_name}'"
+                agents_state[connection_uid] = AgentState(
+                    uid=connection_uid, name=hello_msg.my_name
+                )
+                logging.info(f"New client connected. name:'{hello_msg.my_name}'"
                              f" uid:{connection_uid}")
 
         logging.info(f"All {len(agents_state)} connected")
         return agents_state
 
-    async def send_ready_for_all(self, mq_socket: zmq.Socket, agents_state: Dict[str, AgentState]):
-        for connection_uid, state in agents_state.items():
-            await mq_socket.send_string(connection_uid, zmq.SNDMORE)
-            msg = MessageIn(MessageInType.READY, ReadyMsg(state.agent_id))
-            await mq_socket.send_json(dataclasses.asdict(msg))
+    def set_agents_state(self, agents_state: Dict[str, AgentState]):
+        self.agents_state = agents_state
+
+    async def send_ready_for_all(self):
+        for connection_uid, state in self.agents_state.items():
+            await self.mq_socket.send_string(connection_uid, zmq.SNDMORE)
+            msg = MessageIn(MessageInType.READY, ReadyMsg(state.uid))
+            await self.mq_socket.send_json(dataclasses.asdict(msg))
+
+    def is_stop_criteria(self) -> bool:
+        return any([
+            # max rounds criteria
+            all(x.total_rounds >= self.agent_round_limit
+                for x in self.agents_state.values() if not x.timeout_disconnected
+                ),
+            # min clients criteria
+            sum(1 for x in self.agents_state.values() if not x.timeout_disconnected) < 2
+        ])
+
+    def generate_rounds(self, round_counter: int) -> Tuple[int, List[Round]]:
+        ready_agents = [x for x in self.agents_state.values() if not x.timeout_disconnected]
+        random.shuffle(ready_agents)
+        rnd_agent_pairs = [(ready_agents[i * 2], ready_agents[i * 2 + 1])
+                           for i in range(len(ready_agents) // 2)]
+        result = []
+        for first, second in rnd_agent_pairs:
+            round_counter += 1
+            result.append(Round(
+                round_id=round_counter,
+                total_amount=self.total_offer,
+                proposer=first,
+                responder=second
+            ))
+        logging.debug("Generated %s rounds. "
+                      "Pairs: %s", len(result), [(r.proposer.uid, r.responder.uid) for r in result])
+        return round_counter, result
+
+    async def send_offer_questions(self, rounds: List[Round]):
+        for r in rounds:
+            connection_uid = r.proposer.uid
+            logging.debug("Send offer request to %s", connection_uid)
+            await self.mq_socket.send_string(connection_uid, zmq.SNDMORE)
+            msg = MessageIn(MessageInType.OFFER_REQUEST, OfferRequest(
+                round_id=r.round_id,
+                target_agent_uid=r.responder.uid,
+                total_amount=r.total_amount
+            ))
+            await self.mq_socket.send_json(dataclasses.asdict(msg))
+            agent = self.agents_state[connection_uid]
+            agent.last_action_time = time.time()
+            agent.current_round = r.round_id
+
+    async def wait_all_offer_answers(self, rounds: List[Round]):
+        wait_for_rounds: Dict[str, Round] = {r.proposer.uid: r for r in rounds if not r.is_failed()}
+
+        async def inner_handler():
+            while len(wait_for_rounds) > 0:
+                connection_uid = await self.mq_socket.recv_string()
+                raw_msg = await self.mq_socket.recv_json()
+                logging.debug("Received from %s msg: %s", connection_uid, raw_msg)
+                if connection_uid in wait_for_rounds and raw_msg.get('msg_type', None) == MessageOutType.OFFER_RESPONSE:
+                    r = wait_for_rounds[connection_uid]
+                    offer_response = OfferResponse(**raw_msg['payload'])
+                    r.proposer_offer = offer_response.offer
+                    r.proposer.last_action_time = time.time()
+                    del wait_for_rounds[connection_uid]
+
+        try:
+            await asyncio.wait_for(inner_handler(), timeout=self.agent_timeout)
+        except asyncio.TimeoutError:
+            for uid, r in wait_for_rounds.items():
+                logging.debug("Wait offer response timeout from %s", uid)
+                r.proposer_disconnected = True
+                self.agents_state[uid].timeout_disconnected = True
+                # notify responder
+                result = RoundResult(
+                    round_id=r.round_id,
+                    win=False,
+                    agent_gain={r.responder.uid: 0, r.proposer.uid: 0},
+                    disconnection_failure=True
+                )
+                await self.save_stat_and_notify(r.responder.uid, result)
+
+    async def send_deal_questions(self, rounds: List[Round]):
+        for r in rounds:
+            if not r.is_failed():
+                connection_uid = r.responder.uid
+                await self.mq_socket.send_string(connection_uid, zmq.SNDMORE)
+                msg = MessageIn(MessageInType.DEAL_REQUEST, DealRequest(
+                    round_id=r.round_id,
+                    from_agent_uid=r.proposer.uid,
+                    total_amount=r.total_amount,
+                    offer=r.proposer_offer
+                ))
+                await self.mq_socket.send_json(dataclasses.asdict(msg))
+                agent = self.agents_state[connection_uid]
+                agent.last_action_time = time.time()
+                agent.current_round = r.round_id
+
+    async def wait_deal_answers(self, rounds: List[Round]):
+        wait_for_rounds: Dict[str, Round] = {r.responder.uid: r for r in rounds if not r.is_failed()}
+
+        async def inner_handler():
+            while len(wait_for_rounds) > 0:
+                connection_uid = await self.mq_socket.recv_string()
+                raw_msg = await self.mq_socket.recv_json()
+                logging.debug("Received from %s msg: %s", connection_uid, raw_msg)
+                if connection_uid in wait_for_rounds and raw_msg.get('msg_type', None) == MessageOutType.DEAL_RESPONSE:
+                    r = wait_for_rounds[connection_uid]
+                    deal_response = DealResponse(**raw_msg['payload'])
+                    r.responder_accepted = deal_response.accepted
+                    r.responder.last_action_time = time.time()
+                    del wait_for_rounds[connection_uid]
+
+        try:
+            await asyncio.wait_for(inner_handler(), timeout=self.agent_timeout)
+        except asyncio.TimeoutError:
+            for uid, r in wait_for_rounds.items():
+                logging.debug("Wait deal response timeout from %s", uid)
+                r.responder_disconnected = True
+                self.agents_state[uid].timeout_disconnected = True
+                # notify proposer
+                result = RoundResult(
+                    round_id=r.round_id,
+                    win=False,
+                    agent_gain={r.responder.uid: 0, r.proposer.uid: 0},
+                    disconnection_failure=True
+                )
+                await self.save_stat_and_notify(r.proposer.uid, result)
+
+    async def send_result_for_all(self, rounds: List[Round]):
+        for r in rounds:
+            if not r.is_failed():
+                result = RoundResult(
+                    round_id=r.round_id,
+                    win=r.responder_accepted,
+                    agent_gain={
+                        r.proposer.uid: (r.total_amount - r.proposer_offer),
+                        r.responder.uid: r.proposer_offer},
+                    disconnection_failure=False
+                )
+                await self.save_stat_and_notify(r.proposer.uid, result)
+                await self.save_stat_and_notify(r.responder.uid, result)
+
+    async def save_stat_and_notify(self, uid: str, result: RoundResult):
+        agent = self.agents_state[uid]
+        if not result.disconnection_failure:
+            agent.total_rounds += 1
+            if result.win:
+                agent.wins += 1
+            agent.total_gain += result.agent_gain[uid]
+        msg = MessageIn(MessageInType.ROUND_RESULT, result)
+        logging.debug("Result notify to %s. Result: %s", uid, result)
+        await self.mq_socket.send_string(uid, zmq.SNDMORE)
+        await self.mq_socket.send_json(dataclasses.asdict(msg))
+
+    def show_stat(self):
+        report_str = "Competition results:\nAgent\tscore\trounds"
+        for agent in self.agents_state.values():
+            report_str += f"\n{agent.name}\t{agent.total_gain}\t{agent.rounds}"
+        logging.info(report_str)
 
 
 if __name__ == '__main__':

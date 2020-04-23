@@ -2,7 +2,7 @@ import uuid
 from dataclasses import dataclass, field
 from enum import Enum
 from abc import ABC
-from typing import Dict
+from typing import Dict, Optional
 import time
 
 
@@ -13,6 +13,7 @@ import time
 class MessageInType(str, Enum):
     PING = 'PING'
     READY = 'READY'
+    COMPLETE = 'COMPLETE'
     OFFER_REQUEST = 'OFFER_REQUEST'
     DEAL_REQUEST = 'DEAL_REQUEST'
     ROUND_RESULT = 'ROUND_RESULT'
@@ -29,20 +30,20 @@ class PingMsg(MessageInPayload):
 
 @dataclass(eq=True, frozen=True)
 class ReadyMsg(MessageInPayload):
-    your_agent_id: int
+    your_agent_uid: str
 
 
 @dataclass(eq=True, frozen=True)
 class OfferRequest(MessageInPayload):
     round_id: int
-    target_agent_id: int
+    target_agent_uid: str
     total_amount: int
 
 
 @dataclass(eq=True, frozen=True)
 class DealRequest(MessageInPayload):
     round_id: int
-    from_agent_id: int
+    from_agent_uid: str
     total_amount: int
     offer: int
 
@@ -50,14 +51,17 @@ class DealRequest(MessageInPayload):
 @dataclass(eq=True, frozen=True)
 class RoundResult(MessageInPayload):
     round_id: int
+    # True - if offer has been accepted
     win: bool
-    agent_gain: Dict[int, int]
+    # key - agent uid, value - round gain amount
+    agent_gain: Dict[str, int]
+    disconnection_failure: bool = False
 
 
 @dataclass(eq=True, frozen=True)
 class MessageIn:
     msg_type: MessageInType
-    payload: MessageInPayload
+    payload: Optional[MessageInPayload]
 
 
 # # # # # # # # # #
@@ -98,4 +102,4 @@ class DealResponse(MessageOutPayload):
 @dataclass(eq=True, frozen=True)
 class MessageOut:
     msg_type: MessageOutType
-    payload: MessageOutPayload
+    payload: Optional[MessageOutPayload]
