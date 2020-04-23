@@ -2,7 +2,7 @@ import asyncio
 import dataclasses
 import json
 from dataclasses import dataclass
-from typing import Optional, cast
+from typing import Optional, cast, Dict
 
 import dataclass_factory
 import zmq.asyncio
@@ -16,34 +16,23 @@ import sys
 
 from base.util import init_stdout_logging
 
-init_stdout_logging()
 
-url = '127.0.0.1'
-port = '5555'
-url = "tcp://{}:{}".format(url, port)
-# pub/sub and dealer/router
-ctx = Context.instance()
-factory = dataclass_factory.Factory()
-
-AWAIT_AGENTS = 2
-
-
-def decode_msg(msg_data) -> Optional[MessageOut]:
-    try:
-        # msg_data = json.loads(raw_msg)
-        msg_type = msg_data['msg_type']
-        msg_payload = msg_data['payload']
-        if msg_type == MessageOutType.HELLO:
-            return MessageOut(msg_type, Hello(**msg_payload))
-        elif msg_type == MessageOutType.PONG:
-            return MessageOut(msg_type, Pong(**msg_payload))
-        elif msg_type == MessageOutType.OFFER_RESPONSE:
-            return MessageOut(msg_type, OfferResponse(**msg_payload))
-        elif msg_type == MessageOutType.DEAL_RESPONSE:
-            return MessageOut(msg_type, DealResponse(**msg_payload))
-    except ValueError as e:
-        logging.exception("Decoding error")
-    return None
+# def decode_msg(msg_data) -> Optional[MessageOut]:
+#     try:
+#         # msg_data = json.loads(raw_msg)
+#         msg_type = msg_data['msg_type']
+#         msg_payload = msg_data['payload']
+#         if msg_type == MessageOutType.HELLO:
+#             return MessageOut(msg_type, Hello(**msg_payload))
+#         elif msg_type == MessageOutType.PONG:
+#             return MessageOut(msg_type, Pong(**msg_payload))
+#         elif msg_type == MessageOutType.OFFER_RESPONSE:
+#             return MessageOut(msg_type, OfferResponse(**msg_payload))
+#         elif msg_type == MessageOutType.DEAL_RESPONSE:
+#             return MessageOut(msg_type, DealResponse(**msg_payload))
+#     except ValueError as e:
+#         logging.exception("Decoding error")
+#     return None
 
 
 @dataclass
@@ -56,44 +45,66 @@ class AgentState:
     total_gain: int = 0
 
 
-async def server_handler():
-    # setup router
-    rout = ctx.socket(zmq.ROUTER)
-    rout.bind(url[:-1] + "{}".format(int(url[-1]) + 1))
-    # rout.setsockopt(zmq.SUBSCRIBE, b'')
-    logging.info("Server router initialized. Wait agents ...")
-    try:
+class Server:
+
+    def __init__(self):
+        self.await_agents = 2
+        self.url = '127.0.0.1'
+        self.port = '5555'
+        self.url = "tcp://{}:{}".format(self.url, self.port)
+        self.ctx = Context.instance()
+
+    def start(self):
+        asyncio.get_event_loop().run_until_complete(asyncio.wait([
+            self.server_handler()
+        ]))
+
+    async def server_handler(self):
+        mq_socket = None
+        try:
+            mq_socket = await self.init_mq_router_socket()
+            agents_state = await self.wait_all_clients(mq_socket)
+            await self.send_ready_for_all(mq_socket, agents_state)
+        except Exception as e:
+            logging.exception("Server error.")
+        finally:
+            if mq_socket:
+                logging.info("Close socket.")
+                mq_socket.close()
+
+    async def init_mq_router_socket(self) -> zmq.Socket:
+        mq_socket = self.ctx.socket(zmq.ROUTER)
+        mq_socket.bind(self.url[:-1] + "{}".format(int(self.url[-1]) + 1))
+        logging.info("MQ router socket initialized")
+        return mq_socket
+
+    async def wait_all_clients(self, mq_socket: zmq.Socket) -> Dict[str, AgentState]:
         agents_state = {}
-        # Wait all agents
         counter = 0
-        while len(agents_state) < AWAIT_AGENTS:
-            connection_uid = await rout.recv()
-            raw_msg = await rout.recv_json()
-            # [connection_uid, raw_msg] = await rout.recv_multipart()
-            msg = decode_msg(raw_msg)
-            if msg and msg.msg_type == MessageOutType.HELLO and connection_uid not in agents_state:
+        logging.info("Wait clients ...")
+        while len(agents_state) < self.await_agents:
+            connection_uid = await mq_socket.recv()
+            connection_uid = connection_uid.decode('utf-8')
+            raw_msg = await mq_socket.recv_json()
+            if raw_msg.get('msg_type', None) == MessageOutType.HELLO:
                 counter += 1
-                payload = cast(Hello, msg.payload)
-                agents_state[connection_uid] = AgentState(name=payload.my_name, agent_id=counter)
-                logging.info(f"New client connected name:'{payload.my_name}' uid:{connection_uid}")
+                msg_payload = raw_msg['payload']
+                hello_msg = Hello(**msg_payload)
+                agents_state[connection_uid] = AgentState(name=hello_msg.my_name, agent_id=counter)
+                logging.info(f"New client connected. agent_id:{counter} name:'{hello_msg.my_name}'"
+                             f" uid:{connection_uid}")
 
         logging.info(f"All {len(agents_state)} connected")
+        return agents_state
+
+    async def send_ready_for_all(self, mq_socket: zmq.Socket, agents_state: Dict[str, AgentState]):
         for connection_uid, state in agents_state.items():
-            await rout.send(connection_uid, zmq.SNDMORE)
+            await mq_socket.send_string(connection_uid, zmq.SNDMORE)
             msg = MessageIn(MessageInType.READY, ReadyMsg(state.agent_id))
-            await rout.send_json(dataclasses.asdict(msg))
+            await mq_socket.send_json(dataclasses.asdict(msg))
 
 
-    except Exception as e:
-        print("Error with sub world")
-        # print(e)
-        logging.error(traceback.format_exc())
-        print()
-
-    finally:
-        # TODO disconnect dealer/router
-        pass
-
-
-asyncio.get_event_loop().run_until_complete(asyncio.wait([
-    server_handler()]))
+if __name__ == '__main__':
+    init_stdout_logging()
+    server = Server()
+    server.start()
