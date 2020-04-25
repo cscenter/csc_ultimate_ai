@@ -52,10 +52,12 @@ class Server:
         self.agent_timeout = int(os.getenv('RESPONSE_TIMEOUT', 2))
         self.url = os.getenv('SERVER_URL', '127.0.0.1')
         self.port = os.getenv('SERVER_PORT', '4181')
+        self.log_progress_delay = os.getenv('LOG_PROGRESS_DELAY', 1)
         self.url = "tcp://{}:{}".format(self.url, self.port)
         self.ctx = Context.instance()
         self.mq_socket: Optional[zmq.Socket] = None
         self.agents_state: Dict[str, AgentState] = {}
+        self.last_progress_log = None
 
     def start(self):
         asyncio.get_event_loop().run_until_complete(asyncio.wait([
@@ -71,6 +73,7 @@ class Server:
             await asyncio.sleep(.3)
             round_counter: int = 0
             while not self.is_stop_criteria():
+                self.print_round_progress(round_counter)
                 round_counter, rounds = self.generate_rounds(round_counter)
                 await self.send_offer_questions(rounds)
                 await self.wait_all_offer_answers(rounds)
@@ -291,8 +294,18 @@ class Server:
         for i, (score, gains, agent) in enumerate(result_list):
             gains = np.array(agent.gain_history)
             report_str += f"\n{i + 1}\t{agent.name}\t{score:0.4f}" \
-                          f"\t{gains.mean():0.4f}±{gains.std()/np.sqrt(len(gains)):0.4f}\t{len(gains)}"
+                          f"\t{gains.mean():0.4f}±{gains.std() / np.sqrt(len(gains)):0.4f}\t{len(gains)}"
         logging.info(report_str)
+
+    def print_round_progress(self, round_counter):
+        time_now = time.time()
+        if self.last_progress_log is None:
+            self.last_progress_log = time_now
+            logging.info("Game started ...")
+        else:
+            if time_now > self.last_progress_log + self.log_progress_delay:
+                logging.info(f"Round: {round_counter} limit: {(self.agent_round_limit * self.await_agents)//2}")
+                self.last_progress_log = time_now
 
 
 if __name__ == '__main__':

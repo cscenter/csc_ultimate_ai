@@ -30,7 +30,7 @@ echo "First agent pid:"$A4_PID
 
 # Game server
 export TOTAL_OFFER=100
-export TOTAL_ROUNDS=100
+export TOTAL_ROUNDS=5000
 export CLIENTS_AMOUNT=4
 export RESPONSE_TIMEOUT=2
 pipenv run python server.py
