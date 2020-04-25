@@ -1,5 +1,4 @@
 #!/bin/bash
-set -e
 
 # Common settings
 export SERVER_URL='127.0.0.1'
@@ -12,15 +11,27 @@ A1_PID=$!
 echo "First agent pid:"$A1_PID
 
 # Second agent
-export AGENT_CLS_PATH='agent.chaotic.ChaoticAgent'
+export AGENT_CLS_PATH='agent.dummy.DummyAgent'
 pipenv run python client.py &
 A2_PID=$!
 echo "First agent pid:"$A2_PID
 
+# Third agent
+export AGENT_CLS_PATH='agent.cheater.CheaterAgent'
+pipenv run python client.py &
+A3_PID=$!
+echo "First agent pid:"$A3_PID
+
+# Fourth agent
+export AGENT_CLS_PATH='agent.fair.FairAgent'
+pipenv run python client.py &
+A4_PID=$!
+echo "First agent pid:"$A4_PID
+
 # Game server
 export TOTAL_OFFER=100
 export TOTAL_ROUNDS=100
-export CLIENTS_AMOUNT=2
+export CLIENTS_AMOUNT=4
 export RESPONSE_TIMEOUT=2
 pipenv run python server.py
 
@@ -36,3 +47,5 @@ kill_if_exists () {
 }
 kill_if_exists $A1_PID
 kill_if_exists $A2_PID
+kill_if_exists $A3_PID
+kill_if_exists $A4_PID
