@@ -1,6 +1,7 @@
 import asyncio
 import dataclasses
 import logging
+import os
 import uuid
 
 import zmq.asyncio
@@ -15,9 +16,11 @@ from base.util import init_stdout_logging
 class Client:
 
     def __init__(self):
-        self.class_path = 'agent.chaotic.ChaoticAgent'
-        self.url = '127.0.0.1'
-        self.port = '5555'
+        self.class_path = os.getenv('AGENT_CLS_PATH')
+        if not self.class_path:
+            raise Exception("Yoy must specify environment variable AGENT_CLS_PATH")
+        self.url = os.getenv('SERVER_URL', '127.0.0.1')
+        self.port = os.getenv('SERVER_PORT', '4181')
         self.url = "tcp://{}:{}".format(self.url, self.port)
         self.ctx = Context.instance()
         self.connection_uid = str(uuid.uuid4())
@@ -49,6 +52,7 @@ class Client:
                 mq_socket.close()
 
     def init_ai_agent(self) -> BaseAgent:
+        logging.info(f"Create agent from {self.class_path}")
         split_result = self.class_path.rsplit('.', 1)
         class_name = split_result[1]
         module_path = split_result[0]
@@ -108,12 +112,12 @@ class Client:
 
     async def send_offer(self, mq_socket: zmq.Socket, agent_offer: int):
         msg = MessageOut(MessageOutType.OFFER_RESPONSE, OfferResponse(agent_offer))
-        logging.info(f"Send 'offer' {msg} to server")
+        logging.debug(f"Send 'offer' {msg} to server")
         await mq_socket.send_json(dataclasses.asdict(msg))
 
     async def send_deal_result(self, mq_socket: zmq.Socket, deal_result: bool):
         msg = MessageOut(MessageOutType.DEAL_RESPONSE, DealResponse(deal_result))
-        logging.info(f"Send 'deal' {msg} to server")
+        logging.debug(f"Send 'deal' {msg} to server")
         await mq_socket.send_json(dataclasses.asdict(msg))
 
 

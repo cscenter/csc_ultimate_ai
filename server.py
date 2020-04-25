@@ -1,6 +1,7 @@
 import asyncio
 import dataclasses
 import logging
+import os
 import random
 import time
 from dataclasses import dataclass
@@ -45,12 +46,12 @@ class Round:
 class Server:
 
     def __init__(self):
-        self.total_offer = 100
-        self.agent_round_limit = 10
-        self.await_agents = 2
-        self.agent_timeout = 5
-        self.url = '127.0.0.1'
-        self.port = '5555'
+        self.total_offer = int((os.getenv('TOTAL_OFFER', 100)))
+        self.agent_round_limit = int(os.getenv('TOTAL_ROUNDS', 100))
+        self.await_agents = int((os.getenv('CLIENTS_AMOUNT', 2)))
+        self.agent_timeout = int(os.getenv('RESPONSE_TIMEOUT', 2))
+        self.url = os.getenv('SERVER_URL', '127.0.0.1')
+        self.port = os.getenv('SERVER_PORT', '4181')
         self.url = "tcp://{}:{}".format(self.url, self.port)
         self.ctx = Context.instance()
         self.mq_socket: Optional[zmq.Socket] = None
@@ -95,7 +96,7 @@ class Server:
     async def wait_all_clients(self) -> Dict[str, AgentState]:
         agents_state = {}
         counter = 0
-        logging.info("Wait clients ...")
+        logging.info(f"Wait ({self.await_agents}) clients ...")
         while len(agents_state) < self.await_agents:
             connection_uid = await self.mq_socket.recv_string()
             raw_msg = await self.mq_socket.recv_json()
