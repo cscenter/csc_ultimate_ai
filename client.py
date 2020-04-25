@@ -37,12 +37,12 @@ class Client:
             await asyncio.sleep(.3)
             await self.send_hello(mq_socket, agent.get_my_name())
             ready_msg = await self.wait_ready_msg(mq_socket)
-            agent.agent_id = ready_msg.your_agent_id
+            agent.agent_id = ready_msg.your_agent_uid
             # game loop part
             while True:
                 await self.handle_game_round(mq_socket, agent)
 
-        except Exception as e:
+        except Exception:
             logging.exception("Client error.")
         finally:
             if mq_socket:
@@ -78,7 +78,7 @@ class Client:
             if response.get('msg_type', None) == MessageInType.READY:
                 msg_payload = response['payload']
                 ready_msg = ReadyMsg(**msg_payload)
-                logging.info(f"Received 'ready' from server. Current agent_id:{ready_msg.your_agent_id}")
+                logging.info(f"Received 'ready' from server. Current agent_id:{ready_msg.your_agent_uid}")
                 return ready_msg
 
     async def handle_game_round(self, mq_socket: zmq.Socket, agent: BaseAgent):
@@ -86,8 +86,8 @@ class Client:
             json_data = await mq_socket.recv_json()
             msg_type = json_data.get('msg_type', None)
             payload = json_data.get('payload', None)
-            logging.debug("Received from server: %s",json_data)
-            if msg_type and payload:
+            logging.debug("Received from server: %s", json_data)
+            if msg_type:
                 if msg_type == MessageInType.COMPLETE:
                     logging.info("Received 'complete' from server")
                     return

@@ -9,7 +9,7 @@ from base.protocol import MessageOut, MessageIn, Pong, MessageInType, PingMsg, O
 class BaseAgent(ABC):
     agent_id: Optional[int] = None
 
-    @staticmethod
+    @abstractmethod
     def get_my_name(self) -> str:
         pass
 

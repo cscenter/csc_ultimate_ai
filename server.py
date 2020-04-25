@@ -75,9 +75,10 @@ class Server:
                 await self.send_deal_questions(rounds)
                 await self.wait_deal_answers(rounds)
                 await self.send_result_for_all(rounds)
-            #
+
+            await self.send_complete_for_all()
             self.show_stat()
-        except Exception as e:
+        except Exception:
             logging.exception("Server error.")
         finally:
             if self.mq_socket:
@@ -255,6 +256,14 @@ class Server:
                 await self.save_stat_and_notify(r.proposer.uid, result)
                 await self.save_stat_and_notify(r.responder.uid, result)
 
+    async def send_complete_for_all(self):
+        for agent in self.agents_state.values():
+            uid = agent.uid
+            msg = MessageIn(MessageInType.COMPLETE, None)
+            logging.debug("Send 'complete' to %s. Msg: %s", uid, msg)
+            await self.mq_socket.send_string(uid, zmq.SNDMORE)
+            await self.mq_socket.send_json(dataclasses.asdict(msg))
+
     async def save_stat_and_notify(self, uid: str, result: RoundResult):
         agent = self.agents_state[uid]
         if not result.disconnection_failure:
@@ -270,7 +279,7 @@ class Server:
     def show_stat(self):
         report_str = "Competition results:\nAgent\tscore\trounds"
         for agent in self.agents_state.values():
-            report_str += f"\n{agent.name}\t{agent.total_gain}\t{agent.rounds}"
+            report_str += f"\n{agent.name}\t{agent.total_gain}\t{agent.total_rounds}"
         logging.info(report_str)
 
 
