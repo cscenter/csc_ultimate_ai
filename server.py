@@ -6,6 +6,7 @@ import time
 from dataclasses import dataclass
 from typing import Optional, Dict, List, Tuple
 
+import numpy as np
 import zmq.asyncio
 from zmq.asyncio import Context
 
@@ -21,9 +22,9 @@ class AgentState:
     current_round: int = 0
     total_rounds: int = 0
     wins: int = 0
-    total_gain: int = 0
     last_action_time: float = 0
     timeout_disconnected: bool = False
+    gain_history: List[int] = dataclasses.field(default_factory=list)
 
 
 @dataclass
@@ -270,16 +271,20 @@ class Server:
             agent.total_rounds += 1
             if result.win:
                 agent.wins += 1
-            agent.total_gain += result.agent_gain[uid]
+            gain = result.agent_gain[uid]
+            agent.gain_history.append(gain)
+
         msg = MessageIn(MessageInType.ROUND_RESULT, result)
         logging.debug("Result notify to %s. Result: %s", uid, result)
         await self.mq_socket.send_string(uid, zmq.SNDMORE)
         await self.mq_socket.send_json(dataclasses.asdict(msg))
 
     def show_stat(self):
-        report_str = "Competition results:\nAgent\tscore\trounds"
+        report_str = "Competition results:\nAgent\ttotal_score\tmean_score\trounds"
         for agent in self.agents_state.values():
-            report_str += f"\n{agent.name}\t{agent.total_gain}\t{agent.total_rounds}"
+            gains = np.array(agent.gain_history)
+            report_str += f"\n{agent.name}\t{gains.sum()}" \
+                          f"\t{gains.mean():0.4f}±{gains.std():0.4f}\t{len(gains)}"
         logging.info(report_str)
 
 

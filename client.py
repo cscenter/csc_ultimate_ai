@@ -39,8 +39,7 @@ class Client:
             ready_msg = await self.wait_ready_msg(mq_socket)
             agent.agent_id = ready_msg.your_agent_uid
             # game loop part
-            while True:
-                await self.handle_game_round(mq_socket, agent)
+            await self.handle_game_rounds(mq_socket, agent)
 
         except Exception:
             logging.exception("Client error.")
@@ -81,7 +80,7 @@ class Client:
                 logging.info(f"Received 'ready' from server. Current agent_id:{ready_msg.your_agent_uid}")
                 return ready_msg
 
-    async def handle_game_round(self, mq_socket: zmq.Socket, agent: BaseAgent):
+    async def handle_game_rounds(self, mq_socket: zmq.Socket, agent: BaseAgent):
         while True:
             json_data = await mq_socket.recv_json()
             msg_type = json_data.get('msg_type', None)
