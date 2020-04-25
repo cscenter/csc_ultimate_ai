@@ -281,11 +281,17 @@ class Server:
         await self.mq_socket.send_json(dataclasses.asdict(msg))
 
     def show_stat(self):
-        report_str = "Competition results:\nAgent\ttotal_score\tmean_score\trounds"
+        result_list = []
         for agent in self.agents_state.values():
             gains = np.array(agent.gain_history)
-            report_str += f"\n{agent.name}\t{gains.sum()}" \
-                          f"\t{gains.mean():0.4f}±{gains.std():0.4f}\t{len(gains)}"
+            score = gains.mean() - 2 * (gains.std() / np.sqrt(len(gains)))
+            result_list.append((score, gains, agent))
+        result_list.sort(key=lambda x: x[0], reverse=True)
+        report_str = "Competition results:\nP.\tAgent\tScore\tMean gain\trounds"
+        for i, (score, gains, agent) in enumerate(result_list):
+            gains = np.array(agent.gain_history)
+            report_str += f"\n{i + 1}\t{agent.name}\t{score:0.4f}" \
+                          f"\t{gains.mean():0.4f}±{gains.std()/np.sqrt(len(gains)):0.4f}\t{len(gains)}"
         logging.info(report_str)
 
 
