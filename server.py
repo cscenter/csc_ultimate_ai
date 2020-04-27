@@ -46,6 +46,7 @@ class Round:
 class Server:
 
     def __init__(self):
+        self.min_round_perc = int((os.getenv('MIN_ROUND_PERC', 1)))
         self.total_offer = int((os.getenv('TOTAL_OFFER', 100)))
         self.agent_round_limit = int(os.getenv('TOTAL_ROUNDS', 100))
         self.await_agents = int((os.getenv('CLIENTS_AMOUNT', 2)))
@@ -108,11 +109,15 @@ class Server:
                 counter += 1
                 msg_payload = raw_msg['payload']
                 hello_msg = Hello(**msg_payload)
-                agents_state[connection_uid] = AgentState(
-                    uid=connection_uid, name=hello_msg.my_name
-                )
-                logging.info(f"New client connected. name:'{hello_msg.my_name}'"
-                             f" uid:{connection_uid}")
+                error = hello_msg.find_error()
+                if error:
+                    raise Exception(f"Wrong 'hello' from {connection_uid}. Error: {error}")
+                else:
+                    agents_state[connection_uid] = AgentState(
+                        uid=connection_uid, name=hello_msg.my_name
+                    )
+                    logging.info(f"New client connected. name:'{hello_msg.my_name}'"
+                                 f" uid:{connection_uid}")
 
         logging.info(f"All {len(agents_state)} connected")
         return agents_state
@@ -180,9 +185,13 @@ class Server:
                 if connection_uid in wait_for_rounds and raw_msg.get('msg_type', None) == MessageOutType.OFFER_RESPONSE:
                     r = wait_for_rounds[connection_uid]
                     offer_response = OfferResponse(**raw_msg['payload'])
-                    r.proposer_offer = offer_response.offer
-                    r.proposer.last_action_time = time.time()
-                    del wait_for_rounds[connection_uid]
+                    error = offer_response.find_error()
+                    if error:
+                        logging.error(f"Wrong offer response from {connection_uid} skip it. Error: {error}")
+                    else:
+                        r.proposer_offer = offer_response.offer
+                        r.proposer.last_action_time = time.time()
+                        del wait_for_rounds[connection_uid]
 
         try:
             await asyncio.wait_for(inner_handler(), timeout=self.agent_timeout)
@@ -227,9 +236,13 @@ class Server:
                 if connection_uid in wait_for_rounds and raw_msg.get('msg_type', None) == MessageOutType.DEAL_RESPONSE:
                     r = wait_for_rounds[connection_uid]
                     deal_response = DealResponse(**raw_msg['payload'])
-                    r.responder_accepted = deal_response.accepted
-                    r.responder.last_action_time = time.time()
-                    del wait_for_rounds[connection_uid]
+                    error = deal_response.find_error()
+                    if error:
+                        logging.error(f"Wrong deal response from {connection_uid} skip it. Error: {error}")
+                    else:
+                        r.responder_accepted = deal_response.accepted
+                        r.responder.last_action_time = time.time()
+                        del wait_for_rounds[connection_uid]
 
         try:
             await asyncio.wait_for(inner_handler(), timeout=self.agent_timeout)
@@ -285,16 +298,24 @@ class Server:
 
     def show_stat(self):
         result_list = []
+        disqualification = []
         for agent in self.agents_state.values():
             gains = np.array(agent.gain_history)
-            score = gains.mean() - 2 * (gains.std() / np.sqrt(len(gains)))
-            result_list.append((score, gains, agent))
+            if len(gains) > self.agent_round_limit * self.min_round_perc / 100:
+                score = gains.mean() - 2 * (gains.std() / np.sqrt(len(gains)))
+                result_list.append((score, gains, agent))
+            else:
+                disqualification.append((agent, gains))
         result_list.sort(key=lambda x: x[0], reverse=True)
-        report_str = "Competition results:\nP.\tAgent\tScore\tMean gain\trounds"
+        report_str = "\nCompetition results:\nP.\tAgent\tScore\tMean gain\tRounds"
         for i, (score, gains, agent) in enumerate(result_list):
             gains = np.array(agent.gain_history)
             report_str += f"\n{i + 1}\t{agent.name}\t{score:0.4f}" \
                           f"\t{gains.mean():0.4f}±{gains.std() / np.sqrt(len(gains)):0.4f}\t{len(gains)}"
+        if disqualification:
+            report_str += f"\nDisqualification:\nAgent\tRounds"
+            for agent, gains in disqualification:
+                report_str += f"\n{agent.name}\t{len(gains)}"
         logging.info(report_str)
 
     def print_round_progress(self, round_counter):
@@ -304,7 +325,7 @@ class Server:
             logging.info("Game started ...")
         else:
             if time_now > self.last_progress_log + self.log_progress_delay:
-                logging.info(f"Round: {round_counter} limit: {(self.agent_round_limit * self.await_agents)//2}")
+                logging.info(f"Round: {round_counter} limit: {(self.agent_round_limit * self.await_agents) // 2}")
                 self.last_progress_log = time_now
 
 

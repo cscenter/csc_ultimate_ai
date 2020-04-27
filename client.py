@@ -97,11 +97,17 @@ class Client:
                 elif msg_type == MessageInType.OFFER_REQUEST:
                     offer_request = OfferRequest(**payload)
                     agent_offer = agent.offer_action(offer_request)
-                    await self.send_offer(mq_socket, agent_offer)
+                    if agent_offer is not None:
+                        await self.send_offer(mq_socket, agent_offer)
+                    else:
+                        raise Exception("Not None offer required")
                 elif msg_type == MessageInType.DEAL_REQUEST:
                     deal_request = DealRequest(**payload)
                     deal_result = agent.deal_action(deal_request)
-                    await self.send_deal_result(mq_socket, deal_result)
+                    if deal_result is not None:
+                        await self.send_deal_result(mq_socket, deal_result)
+                    else:
+                        raise Exception("Not None deal result required")
                 elif msg_type == MessageInType.ROUND_RESULT:
                     round_result = RoundResult(**payload)
                     agent.round_result_action(round_result)

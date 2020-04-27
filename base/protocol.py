@@ -1,9 +1,8 @@
-import uuid
+import time
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from abc import ABC
 from typing import Dict, Optional
-import time
 
 
 # # # # # # # # # #
@@ -76,27 +75,58 @@ class MessageOutType(str, Enum):
 
 
 class MessageOutPayload(ABC):
-    pass
+
+    @abstractmethod
+    def find_error(self) -> Optional[str]:
+        pass
 
 
 @dataclass(eq=True, frozen=True)
 class Hello(MessageOutPayload):
     my_name: str
 
+    def find_error(self) -> Optional[str]:
+        if not self.my_name:
+            return "Non empty 'my_name' required"
+        if not isinstance(self.my_name, str):
+            return "String type for 'my_name' required"
+
 
 @dataclass(eq=True, frozen=True)
 class Pong(MessageOutPayload):
     timestamp: float = field(default_factory=lambda: time.time())
+
+    def find_error(self) -> Optional[str]:
+        if not self.timestamp:
+            return "Non empty 'timestamp' required"
+        if not isinstance(self.timestamp, float):
+            return "Float type for 'timestamp' required"
+        if self.timestamp < 0:
+            return "Non negative 'offer' required"
 
 
 @dataclass(eq=True, frozen=True)
 class OfferResponse(MessageOutPayload):
     offer: int
 
+    def find_error(self) -> Optional[str]:
+        if not self.offer:
+            return "Non empty 'offer' required"
+        if not isinstance(self.offer, int):
+            return "Int type for 'offer' required"
+        if self.offer < 0:
+            return "Non negative 'offer' required"
+
 
 @dataclass(eq=True, frozen=True)
 class DealResponse(MessageOutPayload):
     accepted: bool
+
+    def find_error(self) -> Optional[str]:
+        if not self.accepted:
+            return "Non empty 'accepted' required"
+        if not isinstance(self.accepted, bool):
+            return "Bool type for 'accepted' required"
 
 
 @dataclass(eq=True, frozen=True)
