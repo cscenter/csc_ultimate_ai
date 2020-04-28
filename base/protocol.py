@@ -123,7 +123,7 @@ class DealResponse(MessageOutPayload):
     accepted: bool
 
     def find_error(self) -> Optional[str]:
-        if not self.accepted:
+        if self.accepted is None:
             return "Non empty 'accepted' required"
         if not isinstance(self.accepted, bool):
             return "Bool type for 'accepted' required"

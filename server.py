@@ -185,7 +185,10 @@ class Server:
                 if connection_uid in wait_for_rounds and raw_msg.get('msg_type', None) == MessageOutType.OFFER_RESPONSE:
                     r = wait_for_rounds[connection_uid]
                     offer_response = OfferResponse(**raw_msg['payload'])
-                    error = offer_response.find_error()
+                    if offer_response.offer > r.total_amount:
+                        error = f"Offer {offer_response.offer} is to large"
+                    else:
+                        error = offer_response.find_error()
                     if error:
                         logging.error(f"Wrong offer response from {connection_uid} skip it. Error: {error}")
                     else:
