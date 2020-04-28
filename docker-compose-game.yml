@@ -1,0 +1,31 @@
+version: "3"
+services:
+  ai_server:
+    image: "ai_server"
+    container_name: "ai_server"
+    environment:
+      - SERVER_URL=*
+      - SERVER_PORT=4181
+      - TOTAL_OFFER=100
+      - TOTAL_ROUNDS=100
+      - CLIENTS_AMOUNT=2
+      - RESPONSE_TIMEOUT=2
+      - LOG_LEVEL=debug
+    ports:
+      - "4181:4181"
+  ai_agent_1:
+    image: "ai_agent"
+    container_name: "ai_agent_1"
+    environment:
+      - SERVER_URL=ai_server
+      - SERVER_PORT=4181
+      - AGENT_CLS_PATH=agent.chaotic.ChaoticAgent
+      - LOG_LEVEL=debug
+  ai_agent_2:
+    image: "ai_agent"
+    container_name: "ai_agent_2"
+    environment:
+      - SERVER_URL=ai_server
+      - SERVER_PORT=4181
+      - AGENT_CLS_PATH=agent.chaotic.ChaoticAgent
+      - LOG_LEVEL=debug
