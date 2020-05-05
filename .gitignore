@@ -135,3 +135,4 @@ dmypy.json
 .idea/modules.xml
 .idea/vcs.xml
 Pipfile.lock
+/secret.txt
