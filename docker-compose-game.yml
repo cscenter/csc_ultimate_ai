@@ -14,18 +14,18 @@ services:
     ports:
       - "4181:4181"
   ai_agent_1:
-    image: "ai_agent"
+    image: "izhleba/ai_agent"
     container_name: "ai_agent_1"
     environment:
       - SERVER_URL=ai_server
       - SERVER_PORT=4181
-      - AGENT_CLS_PATH=agent.chaotic.ChaoticAgent
+#      - AGENT_CLS_PATH=agent.my_agent.MyAgent
       - LOG_LEVEL=debug
   ai_agent_2:
-    image: "ai_agent"
+    image: "izhleba/ai_agent"
     container_name: "ai_agent_2"
     environment:
       - SERVER_URL=ai_server
       - SERVER_PORT=4181
-      - AGENT_CLS_PATH=agent.chaotic.ChaoticAgent
+#      - AGENT_CLS_PATH=agent.my_agent.MyAgent
       - LOG_LEVEL=debug
