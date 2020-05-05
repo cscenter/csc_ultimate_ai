@@ -136,3 +136,4 @@ dmypy.json
 .idea/vcs.xml
 Pipfile.lock
 /secret.txt
+/web/app.db
