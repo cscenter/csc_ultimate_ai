@@ -1,0 +1,24 @@
+{% extends "appbuilder/base.html" %}
+{% block content %}
+    <div class=page>
+    <h2>
+        <div style="text-align: center">{{_('Leaderboard ' ~ competition_time|safe)}}</div>
+    </h2>
+    <table style="width:100%" class="table table-bordered table-hover">
+        <thead>
+        {% for header in headers %}
+            <th>{{header}} </th>
+        {% endfor %}
+        </thead>
+        <tbody>
+        {% for row in rows %}
+         <tr>
+            {% for header in headers %}
+                <td>{{ row[header]|safe }} </td>
+            {% endfor %}
+         </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
