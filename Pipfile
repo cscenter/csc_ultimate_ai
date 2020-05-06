@@ -15,4 +15,4 @@ docker = "==4.2.0"
 apscheduler = "==3.6.3"
 
 [requires]
-python_version = "3.7"
+python_version = ">=3.7"
