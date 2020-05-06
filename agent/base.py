@@ -10,10 +10,6 @@ class BaseAgent(ABC):
     agent_id: Optional[int] = None
 
     @abstractmethod
-    def get_my_name(self) -> str:
-        pass
-
-    @abstractmethod
     def offer_action(self, data: OfferRequest) -> int:
         # return your offer
         pass

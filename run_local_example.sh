@@ -6,24 +6,28 @@ export SERVER_PORT='4181'
 
 # First agent
 export AGENT_CLS_PATH='agent.chaotic.ChaoticAgent'
+export AGENT_NAME='Chaotic'
 pipenv run python client.py &
 A1_PID=$!
 echo "First agent pid:"$A1_PID
 
 # Second agent
 export AGENT_CLS_PATH='agent.dummy.DummyAgent'
+export AGENT_NAME='Dummy'
 pipenv run python client.py &
 A2_PID=$!
 echo "First agent pid:"$A2_PID
 
 # Third agent
 export AGENT_CLS_PATH='agent.cheater.CheaterAgent'
+export AGENT_NAME='Cheater'
 pipenv run python client.py &
 A3_PID=$!
 echo "First agent pid:"$A3_PID
 
 # Fourth agent
 export AGENT_CLS_PATH='agent.fair.FairAgent'
+export AGENT_NAME='Fair'
 pipenv run python client.py &
 A4_PID=$!
 echo "First agent pid:"$A4_PID

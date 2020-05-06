@@ -1,5 +1,7 @@
 import asyncio
 import dataclasses
+import datetime
+import json
 import logging
 import os
 import random
@@ -308,17 +310,42 @@ class Server:
                 score = gains.mean() - 2 * (gains.std() / np.sqrt(len(gains)))
                 result_list.append((score, gains, agent))
             else:
-                disqualification.append((agent, gains))
+                disqualification.append((gains, agent))
         result_list.sort(key=lambda x: x[0], reverse=True)
-        report_str = "\nCompetition results:\nP.\tAgent\tScore\tMean gain\tRounds"
+        result_dict = {
+            'headers': ['Place', 'Agent', 'Score', 'Mean gain (±std)', 'Rounds', 'Status'],
+            'data': [],
+            'competition_time': datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+        }
         for i, (score, gains, agent) in enumerate(result_list):
-            gains = np.array(agent.gain_history)
-            report_str += f"\n{i + 1}\t{agent.name}\t{score:0.4f}" \
-                          f"\t{gains.mean():0.4f}±{gains.std() / np.sqrt(len(gains)):0.4f}\t{len(gains)}"
-        if disqualification:
-            report_str += f"\nDisqualification:\nAgent\tRounds"
-            for agent, gains in disqualification:
-                report_str += f"\n{agent.name}\t{len(gains)}"
+            row = {
+                'Place': f"{i + 1}",
+                'Agent': agent.name,
+                'Score': f"{score:0.4f}",
+                'Mean gain (±std)': f"{gains.mean():0.4f}±{gains.std() / np.sqrt(len(gains)):0.4f}",
+                'Rounds': f"{len(gains)}",
+                'Status': 'Ok'
+            }
+            result_dict['data'].append(row)
+
+        for i, (gains, agent) in enumerate(disqualification):
+            row = {
+                'Place': '_',
+                'Agent': agent.name,
+                'Score': '_',
+                'Mean gain': '_',
+                'Rounds': f"{len(gains)}",
+                'Status': 'Timeout disqualification'
+            }
+            result_dict['data'].append(row)
+
+        logging.info(f"ROUND_JSON_DATA:{json.dumps(result_dict)}")
+        # Inplace table
+        headers = '\t'.join(result_dict['headers'])
+        report_str = f"\nCompetition results:\n{headers}"
+        for row in result_dict['data']:
+            row_str = '\t'.join([row[header] for header in result_dict['headers']])
+            report_str += f"\n{row_str}"
         logging.info(report_str)
 
     def print_round_progress(self, round_counter):

@@ -22,6 +22,7 @@ class Client:
         self.url = os.getenv('SERVER_URL', '127.0.0.1')
         self.port = os.getenv('SERVER_PORT', '4181')
         self.url = "tcp://{}:{}".format(self.url, self.port)
+        self.my_name = os.getenv('AGENT_NAME', '<no name>')
         self.ctx = Context.instance()
         self.connection_uid = str(uuid.uuid4())
 
@@ -38,7 +39,7 @@ class Client:
             mq_socket = await self.init_mq_dealer_socket()
             # give time to router to initialize; wait time >.2 sec
             await asyncio.sleep(.3)
-            await self.send_hello(mq_socket, agent.get_my_name())
+            await self.send_hello(mq_socket, self.my_name)
             ready_msg = await self.wait_ready_msg(mq_socket)
             agent.agent_id = ready_msg.your_agent_uid
             # game loop part

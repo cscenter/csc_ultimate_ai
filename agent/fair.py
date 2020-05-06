@@ -4,9 +4,6 @@ from base.protocol import OfferRequest, OfferResponse, DealRequest, DealResponse
 
 class FairAgent(BaseAgent):
 
-    def get_my_name(self) -> str:
-        return 'Fair'
-
     def offer_action(self, m: OfferRequest) -> int:
         return m.total_amount // 2
 

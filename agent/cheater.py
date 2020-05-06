@@ -4,9 +4,6 @@ from base.protocol import OfferRequest, OfferResponse, DealRequest, DealResponse
 
 class CheaterAgent(BaseAgent):
 
-    def get_my_name(self) -> str:
-        return 'Cheater'
-
     def offer_action(self, m: OfferRequest) -> int:
         return min(m.total_amount, 1)
 
