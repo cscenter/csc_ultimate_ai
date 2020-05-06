@@ -138,3 +138,6 @@ Pipfile.lock
 /secret.txt
 /web/app.db.old
 /web/app.db
+/run.sh
+.idea/*
+web/.DS_Store
