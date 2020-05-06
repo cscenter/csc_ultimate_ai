@@ -3,7 +3,7 @@ import os
 import sys
 
 
-def init_stdout_logging():
+def log_level_from_env() -> int:
     level_str = os.getenv('LOG_LEVEL', 'info').lower().strip()
     if level_str == 'info':
         level = logging.INFO
@@ -14,6 +14,11 @@ def init_stdout_logging():
     else:
         level = logging.ERROR
         print(f"Unknown logging level {level_str}", file=sys.stderr)
+    return level
+
+
+def init_stdout_logging():
+    level = log_level_from_env()
     root = logging.getLogger()
     root.setLevel(level)
 

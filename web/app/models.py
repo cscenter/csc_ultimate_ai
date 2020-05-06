@@ -13,13 +13,12 @@ class MyUser(User):
 
 class SubmissionDockerImage(AuditMixin, Model):
     id = Column(Integer, primary_key=True, autoincrement=True)
-    # user_id = Column(Integer, nullable=False)
     competition = Column(String(250), nullable=False, default='UltimateGame')
     docker_image = Column(String(2048), nullable=False)
     comment = Column(String(2048), nullable=True)
     last_competition = Column(DateTime, nullable=True)
     last_score = Column(String(2048), nullable=True)
-    # active = Column(Boolean, nullable=False, default=True)
+    pull_status = Column(String(250), nullable=False, default='Waiting')
 
 
 class CompetitionRound(Model):

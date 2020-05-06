@@ -9,8 +9,11 @@ from flask import Flask
 #
 from flask_appbuilder import SQLA
 
+from base.util import log_level_from_env
+
 logging.basicConfig(format="%(asctime)s:%(levelname)s:%(name)s:%(message)s")
-logging.getLogger().setLevel(logging.DEBUG)
+level = log_level_from_env()
+logging.getLogger().setLevel(level)
 
 app = Flask(__name__)
 
