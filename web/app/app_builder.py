@@ -260,6 +260,9 @@ def run_competition():
 
 def run_background_scheduler():
     scheduler = BlockingScheduler()
+    logging.info("Run competition on start")
+    run_competition()
+    logging.info("Schedule competitions")
     scheduler.add_job(run_competition, 'interval', minutes=1)
     scheduler.start()
 
