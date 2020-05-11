@@ -1,5 +1,7 @@
 import logging
 #
+from contextlib import contextmanager
+
 from flask import Flask
 # from flask_appbuilder import AppBuilder, SQLA
 #
@@ -19,6 +21,22 @@ app = Flask(__name__)
 
 app.config.from_object("config")
 db = SQLA(app)
+
+
+@contextmanager
+def db_session():
+    """Provide a transactional scope around a series of operations."""
+    session = db.session
+    try:
+        yield session
+        session.commit()
+    except:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
 """
 from sqlalchemy.engine import Engine
 from sqlalchemy import event
