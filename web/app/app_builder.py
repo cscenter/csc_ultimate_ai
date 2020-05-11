@@ -13,12 +13,15 @@ from web.app import app, db
 from web.app.models import CompetitionRound, SubmissionDockerImage
 from web.app.view.index import MyIndexView
 from web.app.view.leaderboard import Leaderboard
+from web.app.view.registration import AppSecurityManager
 from web.app.view.submissions import SubmissionSettings
 from apscheduler.schedulers.blocking import BlockingScheduler
 
 db.create_all()
 
-appbuilder = AppBuilder(app, db.session, indexview=MyIndexView())
+appbuilder = AppBuilder(app, db.session,
+                        indexview=MyIndexView(),
+                        security_manager_class=AppSecurityManager)
 
 
 @appbuilder.app.errorhandler(404)
