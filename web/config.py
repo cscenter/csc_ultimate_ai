@@ -133,3 +133,5 @@ MAIL_USE_SSL = os.getenv('MAIL_USE_SSL','false').lower().strip() == 'true'
 MAIL_USERNAME = os.getenv('MAIL_USERNAME','admin@ultimategame.ml')
 MAIL_DEFAULT_SENDER = os.getenv('MAIL_DEFAULT_SENDER','admin@ultimategame.ml')
 MAIL_PASSWORD = os.getenv('MAIL_PASSWORD','123')
+
+SERVER_NAME = os.getenv('SERVER_NAME','localhost:5000')
