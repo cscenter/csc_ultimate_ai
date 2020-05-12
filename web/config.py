@@ -49,8 +49,21 @@ AUTH_TYPE = AUTH_DB
 AUTH_USER_REGISTRATION = True
 
 # The default user self registration role
-AUTH_USER_REGISTRATION_ROLE = "Public"
+AUTH_USER_REGISTRATION_ROLE = "User"
 
+# FAB_ROLES = {
+#     "User": [
+#     ["Submissions", "*"],
+#     ["Leaderboard", "*"],
+# #     ["SubmissionSettings", "*"],
+# #         ["Leaderboard", "can_list"],
+# #         ["Leaderboard", "can_show"],
+# #         ["SubmissionSettings", "can_list"],
+# #         ["SubmissionSettings", "can_show"],
+# #         ["SubmissionSettings", "can_add"],
+# #         ["SubmissionSettings", "can_download"],
+#     ]
+# }
 # When using LDAP Auth, setup the ldap server
 # AUTH_LDAP_SERVER = "ldap://ldapserver.new"
 

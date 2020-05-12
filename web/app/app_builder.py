@@ -30,7 +30,8 @@ def page_not_found(e):
 
 
 appbuilder.add_view(Leaderboard, "Leaderboard", category='Leaderboard')
-appbuilder.add_view(SubmissionSettings, "Submission settings", category="Submissions")
+appbuilder.add_view(SubmissionSettings, "Submissions list", category="Submissions")
+appbuilder.add_link("Make submission", href='/submissionsettings/add', category='Submissions')
 
 appbuilder.security_cleanup()
 
