@@ -307,7 +307,9 @@ class Server:
         for agent in self.agents_state.values():
             gains = np.array(agent.gain_history)
             if len(gains) > self.agent_round_limit * self.min_round_perc / 100:
-                score = gains.mean() - 2 * (gains.std() / np.sqrt(len(gains)))
+                C = 18
+                m = self.total_offer / 2
+                score = (C*m + gains.sum())/(C+len(gains))
                 result_list.append((score, gains, agent))
             else:
                 disqualification.append((gains, agent))
