@@ -72,6 +72,7 @@ def run_competition():
     for i, (user_id, submission) in enumerate(items):
         agent_image = submission['docker_image']
         submit_id = submission['submit_id']
+        container = None
         try:
             logging.info("Try to poll agent from %s", agent_image)
             client.images.pull(agent_image)
@@ -79,6 +80,39 @@ def run_competition():
                 .filter(SubmissionDockerImage.id == submit_id) \
                 .update({'pull_status': 'Downloaded', 'changed_by_fk': 1})
             db.session.commit()
+
+            logging.info("Try to run agent %s and wait for status %s seconds", agent_image, PRE_START_TIMEOUT)
+            container = client.containers.run(agent_image,
+                                              environment={
+                                                  "AGENT_NAME": 'test',
+                                                  "SERVER_URL": 'ai_server',
+                                                  "SERVER_PORT": 4181,
+                                                  "LOG_LEVEL": "debug"
+                                              },
+                                              name=f'ai_agent_{i + 1}',
+                                              detach=True)
+            sleep(PRE_START_TIMEOUT)
+            log_data = container.logs(tail=10).decode("utf-8")
+            if 'ready' not in log_data:
+                del user_id_to_submissions[user_id]
+                logging.warning("Container %s not ready. Log: %s", agent_image, log_data)
+                db.session.query(SubmissionDockerImage) \
+                    .filter(SubmissionDockerImage.id == submit_id) \
+                    .update({'pull_status': 'Wrong launch', 'changed_by_fk': 1})
+                db.session.commit()
+            elif container.status == 'exited':
+                del user_id_to_submissions[user_id]
+                logging.warning("Container %s not ready. Status: %s", agent_image, container.status)
+                db.session.query(SubmissionDockerImage) \
+                    .filter(SubmissionDockerImage.id == submit_id) \
+                    .update({'pull_status': 'Exited to fast', 'changed_by_fk': 1})
+                db.session.commit()
+            else:
+                logging.info("Container %s ready!", agent_image)
+                db.session.query(SubmissionDockerImage) \
+                    .filter(SubmissionDockerImage.id == submit_id) \
+                    .update({'pull_status': 'Ok', 'changed_by_fk': 1})
+                db.session.commit()
         except Exception as e:
             del user_id_to_submissions[user_id]
             logging.exception(f"Pull image '{agent_image}' error.")
@@ -86,40 +120,10 @@ def run_competition():
                 .filter(SubmissionDockerImage.id == submit_id) \
                 .update({'pull_status': 'Downloading error', 'changed_by_fk': 1})
             db.session.commit()
-        logging.info("Try to run agent %s and wait for status %s seconds", agent_image, PRE_START_TIMEOUT)
-        container = client.containers.run(agent_image,
-                                          environment={
-                                              "AGENT_NAME": 'test',
-                                              "SERVER_URL": 'ai_server',
-                                              "SERVER_PORT": 4181,
-                                              "LOG_LEVEL": "debug"
-                                          },
-                                          name=f'ai_agent_{i + 1}',
-                                          detach=True)
-        sleep(PRE_START_TIMEOUT)
-        log_data = container.logs(tail=10).decode("utf-8")
-        if 'ready' not in log_data:
-            del user_id_to_submissions[user_id]
-            logging.warning("Container %s not ready. Log: %s", agent_image, log_data)
-            db.session.query(SubmissionDockerImage) \
-                .filter(SubmissionDockerImage.id == submit_id) \
-                .update({'pull_status': 'Wrong launch', 'changed_by_fk': 1})
-            db.session.commit()
-        elif container.status == 'exited':
-            del user_id_to_submissions[user_id]
-            logging.warning("Container %s not ready. Status: %s", agent_image, container.status)
-            db.session.query(SubmissionDockerImage) \
-                .filter(SubmissionDockerImage.id == submit_id) \
-                .update({'pull_status': 'Exited to fast', 'changed_by_fk': 1})
-            db.session.commit()
-        else:
-            logging.info("Container %s ready!", agent_image)
-            db.session.query(SubmissionDockerImage) \
-                .filter(SubmissionDockerImage.id == submit_id) \
-                .update({'pull_status': 'Ok', 'changed_by_fk': 1})
-            db.session.commit()
-        logging.info("Remove image %s after test ", agent_image)
-        container.remove(force=True)
+        finally:
+            if container:
+                logging.info("Remove image %s after test ", agent_image)
+                container.remove(force=True)
 
     if len(user_id_to_submissions) < 2:
         logging.info('Not enough submissions for round')
