@@ -22,7 +22,8 @@ services:
 #      - AGENT_CLS_PATH=agent.my_agent.MyAgent
       - LOG_LEVEL=debug
   ai_agent_2:
-    image: "izhleba/ai_agent"
+#    image: "izhleba/ai_agent"
+    image: "johndolgov/ai_agent"
     container_name: "ai_agent_2"
     environment:
       - SERVER_URL=ai_server
