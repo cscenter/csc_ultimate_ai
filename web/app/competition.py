@@ -135,7 +135,7 @@ def run_competition():
                                                  "SERVER_URL": "*",
                                                  "SERVER_PORT": 4181,
                                                  "TOTAL_OFFER": 100,
-                                                 "TOTAL_ROUNDS": 200,
+                                                 "TOTAL_ROUNDS": 100,
                                                  "CLIENTS_AMOUNT": len(user_id_to_submissions),
                                                  "RESPONSE_TIMEOUT": 5,
                                                  "LOG_LEVEL": "debug"
