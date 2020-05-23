@@ -170,7 +170,7 @@ def run_competition():
 
     def find_data_in_log(container) -> Optional[str]:
         PATTERN = 'ROUND_JSON_DATA:'
-        log_data = container.logs(tail=10).decode("utf-8")
+        log_data = container.logs(tail=1000).decode("utf-8")
         logging.debug(f"Server container last log data %s", log_data)
         for line in log_data.split('\n'):
             if PATTERN in line:
