@@ -335,7 +335,7 @@ class Server:
                 'Place': '_',
                 'Agent': agent.name,
                 'Score': '_',
-                'Mean gain': '_',
+                'Mean gain (±std)': '_',
                 'Rounds': f"{len(gains)}",
                 'Status': 'Timeout disqualification'
             }
