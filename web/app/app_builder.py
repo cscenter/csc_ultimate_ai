@@ -37,12 +37,12 @@ appbuilder.security_cleanup()
 
 
 def run_background_scheduler():
-    scheduler = BlockingScheduler()
     logging.info("Run competition on start")
     run_competition()
-    logging.info("Schedule competitions")
-    scheduler.add_job(run_competition, 'interval', minutes=15)
-    scheduler.start()
+    # scheduler = BlockingScheduler()
+    # logging.info("Schedule competitions")
+    # scheduler.add_job(run_competition, 'interval', minutes=15)
+    # scheduler.start()
 
 
 thread = Thread(target=run_background_scheduler)
