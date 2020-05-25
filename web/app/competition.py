@@ -179,7 +179,7 @@ def run_competition():
                     return split_result[1].strip()
         return None
 
-    GET_RESULT_TIMEOUT = 60 * 30  # 30 minutes
+    GET_RESULT_TIMEOUT = 60 * 60 * 3  # 3 hours
     start = time.time()
     logging.info("Waiting result from containers. Time limit: %s seconds", GET_RESULT_TIMEOUT)
     while True:
