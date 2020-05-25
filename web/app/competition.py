@@ -135,9 +135,9 @@ def run_competition():
                                                  "SERVER_URL": "*",
                                                  "SERVER_PORT": 4181,
                                                  "TOTAL_OFFER": 100,
-                                                 "TOTAL_ROUNDS": 1000,
+                                                 "TOTAL_ROUNDS": 2000,
                                                  "CLIENTS_AMOUNT": len(user_id_to_submissions),
-                                                 "RESPONSE_TIMEOUT": 5,
+                                                 "RESPONSE_TIMEOUT": 10,
                                                  "LOG_LEVEL": "debug"
                                              },
                                              name='ai_server',
@@ -179,7 +179,7 @@ def run_competition():
                     return split_result[1].strip()
         return None
 
-    GET_RESULT_TIMEOUT = 60 * 60 * 3  # 3 hours
+    GET_RESULT_TIMEOUT = 60 * 60 * 10  # 10 hours
     start = time.time()
     logging.info("Waiting result from containers. Time limit: %s seconds", GET_RESULT_TIMEOUT)
     while True:
