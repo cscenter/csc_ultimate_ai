@@ -141,3 +141,4 @@ Pipfile.lock
 /run.sh
 .idea/*
 web/.DS_Store
+/db_examples/*
