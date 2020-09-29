@@ -161,6 +161,7 @@ def run_competition():
                                           },
                                           name=f'ai_agent_{i + 1}',
                                           links={'ai_server': 'ai_server'},
+                                          mem_limit='500m',
                                           detach=True)
         agent_containers.append(container)
 
