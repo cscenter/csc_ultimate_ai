@@ -15,7 +15,7 @@ from zmq.asyncio import Context
 
 from base.protocol import MessageOutType, Hello, OfferResponse, DealResponse, ReadyMsg, MessageInType, \
     MessageIn, OfferRequest, DealRequest, RoundResult
-from base.util import init_stdout_logging
+from base.util import init_stdout_logging, init_file_logging
 
 
 @dataclass
@@ -363,5 +363,6 @@ class Server:
 
 if __name__ == '__main__':
     init_stdout_logging()
+    init_file_logging('logs/server.log')
     server = Server()
     server.start()

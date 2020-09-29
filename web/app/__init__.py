@@ -11,11 +11,10 @@ from flask import Flask
 #
 from flask_appbuilder import SQLA
 
-from base.util import log_level_from_env
+from base.util import init_stdout_logging, init_file_logging
 
-logging.basicConfig(format="%(asctime)s:%(levelname)s:%(name)s:%(message)s")
-level = log_level_from_env()
-logging.getLogger().setLevel(level)
+init_stdout_logging()
+init_file_logging('logs/server.log')
 
 app = Flask(__name__)
 

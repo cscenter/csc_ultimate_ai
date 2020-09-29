@@ -1,5 +1,6 @@
 import logging
 import os
+import pathlib
 import sys
 
 
@@ -17,13 +18,45 @@ def log_level_from_env() -> int:
     return level
 
 
-def init_stdout_logging():
+LOG_FORMATTER = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+
+def init_file_logging(log_path) -> logging.Logger:
+    level = log_level_from_env()
+    logger = logging.getLogger()
+    logger.setLevel(level)
+
+    try:
+        logger.info(f"Log path: {log_path}")
+        path = pathlib.Path(log_path)
+
+        def file_ready(file_path):
+            try:
+                return file_path.exists()
+            except PermissionError:
+                return False
+
+        if not file_ready(path):
+            logger.info(f"Path does't exists: {log_path}")
+            logger.info("Try to create it.")
+            path.parent.mkdir(parents=True, exist_ok=True)
+
+        file_handler = logging.FileHandler(log_path)
+        file_handler.setFormatter(LOG_FORMATTER)
+        logger.addHandler(file_handler)
+    except Exception:
+        logger.exception("Can't create file handler for logger")
+    return logging
+
+
+def init_stdout_logging() -> logging.Logger:
     level = log_level_from_env()
     root = logging.getLogger()
     root.setLevel(level)
 
     handler = logging.StreamHandler(sys.stdout)
     handler.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    handler.setFormatter(formatter)
+
+    handler.setFormatter(LOG_FORMATTER)
     root.addHandler(handler)
+    return root
