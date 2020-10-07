@@ -268,12 +268,19 @@ class Server:
     async def send_result_for_all(self, rounds: List[Round]):
         for r in rounds:
             if not r.is_failed():
+                # agent offer aception rules
+                if r.responder_accepted:
+                    proposer_gain = (r.total_amount - r.proposer_offer)
+                    responder_gain = r.proposer_offer
+                else:
+                    proposer_gain = 0
+                    responder_gain = 0
                 result = RoundResult(
                     round_id=r.round_id,
                     win=r.responder_accepted,
                     agent_gain={
-                        r.proposer.uid: (r.total_amount - r.proposer_offer),
-                        r.responder.uid: r.proposer_offer},
+                        r.proposer.uid: proposer_gain,
+                        r.responder.uid: responder_gain},
                     disconnection_failure=False
                 )
                 await self.save_stat_and_notify(r.proposer.uid, result)
