@@ -97,7 +97,7 @@ class Pong(MessageOutPayload):
     timestamp: float = field(default_factory=lambda: time.time())
 
     def find_error(self) -> Optional[str]:
-        if not self.timestamp:
+        if self.timestamp is None:
             return "Non empty 'timestamp' required"
         if not isinstance(self.timestamp, float):
             return "Float type for 'timestamp' required"
@@ -110,7 +110,7 @@ class OfferResponse(MessageOutPayload):
     offer: int
 
     def find_error(self) -> Optional[str]:
-        if not self.offer:
+        if self.offer is None:
             return "Non empty 'offer' required"
         if not isinstance(self.offer, int):
             return "Int type for 'offer' required"
