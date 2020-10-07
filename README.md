@@ -9,9 +9,12 @@ DEMO: http://ultimategame.ml/
 *Увы нет инструкции под Windows. Если вы расширите проект примером запуска для Windows. Пожалуйста сделайте пулл реквест, 
 либо напишите Алексею Пшеничному izhleba@gmail.com*
 
- 0.  Необходимо установить git и pipenv.
+ 0.  Необходимо установить docker, git, pipenv и обновить(установить) sqlite3 >=3.32 .
+    
+    https://docs.docker.com/engine/install/
     https://www.atlassian.com/git/tutorials/install-git
     https://github.com/pypa/pipenv#installation
+    https://www.sqlite.org/download.html
  
  1. Cкачиваем репозиторий с кодом и заходим в директорию с проектом.
     ```
