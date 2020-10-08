@@ -313,7 +313,7 @@ class Server:
         disqualification = []
         for agent in self.agents_state.values():
             gains = np.array(agent.gain_history)
-            logging.info("Stat: agent:%s, gains:%s", agent.name, gains)
+            # logging.debug(f"Stat: agent:{agent.name}, gains:{gains}")
             if len(gains) > self.agent_round_limit * self.min_round_perc / 100:
                 C = 18
                 m = self.total_offer / 2
